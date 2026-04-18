@@ -1,0 +1,1 @@
+ALTER TABLE "wa_messages" ALTER COLUMN "raw_event_id" DROP NOT NULL;
