@@ -1,4 +1,3 @@
-// src\components\inbox\send-box.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,9 +14,7 @@ export function SendBox({ disabled = false, onSend }: SendBoxProps) {
   async function handleSend() {
     const trimmed = text.trim();
 
-    if (!trimmed || disabled || isSending) {
-      return;
-    }
+    if (!trimmed || disabled || isSending) return;
 
     try {
       setIsSending(true);
@@ -29,22 +26,28 @@ export function SendBox({ disabled = false, onSend }: SendBoxProps) {
   }
 
   return (
-    <div className="border-t bg-white p-4">
-      <div className="flex items-end gap-3">
+    <div className="border-t bg-slate-50 px-4 py-3">
+      <div className="flex items-end gap-3 rounded-2xl bg-white p-2 shadow-sm">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={3}
-          placeholder="Type your reply..."
+          rows={1}
+          placeholder="Type a message"
           disabled={disabled || isSending}
-          className="min-h-[84px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+          className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl px-3 py-2 text-sm text-black outline-none"
+          onKeyDown={async (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              await handleSend();
+            }
+          }}
         />
         <button
           onClick={handleSend}
           disabled={disabled || isSending || !text.trim()}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {isSending ? "Sending..." : "Send"}
+          {isSending ? "..." : "Send"}
         </button>
       </div>
     </div>

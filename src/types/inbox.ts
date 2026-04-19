@@ -1,4 +1,3 @@
-// src\types\inbox.ts
 export type ConversationItem = {
   id: string;
   conversationId: string;
@@ -24,6 +23,10 @@ export type MessageItem = {
   status: string | null;
   contextMessageId: string | null;
   eventTimestamp: string | null;
+
+  mediaUrl?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
 };
 
 export type MessageRawPayload = {

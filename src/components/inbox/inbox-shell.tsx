@@ -1,19 +1,21 @@
-// src\components\inbox\inbox-shell.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ConversationList } from "@/components/inbox/conversation-list";
-import { ChatThread } from "@/components/inbox/chat-thread";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConversationSidebar } from "@/components/inbox/sidebar/conversation-sidebar";
+import { ChatPanel } from "@/components/inbox/chat/chat-panel";
 import { InspectorPanel } from "@/components/inbox/inspector-panel";
 import {
   fetchConversationMessages,
   fetchConversations,
   fetchMessageRaw,
+  markConversationRead,
   sendConversationMessage,
 } from "@/lib/inbox/api";
+import { useInboxPolling } from "@/hooks/use-inbox-polling";
 import { ConversationItem, MessageItem, MessageRawPayload } from "@/types/inbox";
 
 export function InboxShell() {
+  const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<ConversationItem | null>(null);
@@ -27,28 +29,96 @@ export function InboxShell() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingRaw, setIsLoadingRaw] = useState(false);
 
-  useEffect(() => {
-    async function loadConversations() {
+  const hasInitializedRef = useRef(false);
+  const lastMarkedReadConversationRef = useRef<string | null>(null);
+  const lastLoadedRawMessageRef = useRef<string | null>(null);
+
+  const loadConversations = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+
       try {
-        setIsLoadingConversations(true);
-        const data = await fetchConversations();
+        if (!silent && !hasInitializedRef.current) {
+          setIsLoadingConversations(true);
+        }
+
+        const data = await fetchConversations(search);
         setConversations(data);
 
-        if (data.length > 0) {
+        if (!selectedConversation && data.length > 0) {
           setSelectedConversation(data[0]);
+          return;
+        }
+
+        if (selectedConversation) {
+          const stillExists = data.find(
+            (item) => item.conversationId === selectedConversation.conversationId
+          );
+
+          if (stillExists) {
+            setSelectedConversation((prev) => {
+              if (!prev) return stillExists;
+              if (prev.conversationId !== stillExists.conversationId) {
+                return stillExists;
+              }
+
+              return {
+                ...prev,
+                ...stillExists,
+              };
+            });
+          }
         }
       } catch (error) {
         console.error(error);
       } finally {
-        setIsLoadingConversations(false);
+        if (!silent && !hasInitializedRef.current) {
+          setIsLoadingConversations(false);
+        }
       }
-    }
+    },
+    [search, selectedConversation]
+  );
 
-    loadConversations();
-  }, []);
+  const loadMessages = useCallback(
+    async (conversationId: string, options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+
+      try {
+        if (!silent) {
+          setIsLoadingMessages(true);
+        }
+
+        const data = await fetchConversationMessages(conversationId);
+        setMessages(data);
+
+        setSelectedMessage((current) => {
+          if (!current) return data[data.length - 1] ?? null;
+
+          return data.find((item) => item.wamid === current.wamid) ?? current;
+        });
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!silent) {
+          setIsLoadingMessages(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    async function loadMessages() {
+    async function init() {
+      await loadConversations({ silent: false });
+      hasInitializedRef.current = true;
+    }
+
+    void init();
+  }, [loadConversations]);
+
+  useEffect(() => {
+    async function handleConversationChange() {
       if (!selectedConversation) {
         setMessages([]);
         setSelectedMessage(null);
@@ -56,26 +126,23 @@ export function InboxShell() {
         return;
       }
 
-      try {
-        setIsLoadingMessages(true);
-        const data = await fetchConversationMessages(selectedConversation.conversationId);
-        setMessages(data);
+      await loadMessages(selectedConversation.conversationId, { silent: false });
 
-        if (data.length > 0) {
-          setSelectedMessage(data[data.length - 1]);
-        } else {
-          setSelectedMessage(null);
-          setSelectedRawPayload(null);
+      if (
+        lastMarkedReadConversationRef.current !== selectedConversation.conversationId
+      ) {
+        try {
+          await markConversationRead(selectedConversation.conversationId);
+          lastMarkedReadConversationRef.current =
+            selectedConversation.conversationId;
+        } catch (error) {
+          console.error(error);
         }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsLoadingMessages(false);
       }
     }
 
-    loadMessages();
-  }, [selectedConversation]);
+    void handleConversationChange();
+  }, [selectedConversation, loadMessages]);
 
   useEffect(() => {
     async function loadRawPayload() {
@@ -84,20 +151,38 @@ export function InboxShell() {
         return;
       }
 
+      if (lastLoadedRawMessageRef.current === selectedMessage.wamid) {
+        return;
+      }
+
       try {
         setIsLoadingRaw(true);
         const data = await fetchMessageRaw(selectedMessage.wamid);
         setSelectedRawPayload(data);
+        lastLoadedRawMessageRef.current = selectedMessage.wamid;
       } catch (error) {
         console.error(error);
-        setSelectedRawPayload(null);
       } finally {
         setIsLoadingRaw(false);
       }
     }
 
-    loadRawPayload();
+    void loadRawPayload();
   }, [selectedMessage]);
+
+  useInboxPolling({
+    enabled: hasInitializedRef.current,
+    intervalMs: 5000,
+    onPoll: async () => {
+      await loadConversations({ silent: true });
+
+      if (selectedConversation?.conversationId) {
+        await loadMessages(selectedConversation.conversationId, {
+          silent: true,
+        });
+      }
+    },
+  });
 
   async function handleSendMessage(text: string) {
     if (!selectedConversation?.customerPhone) {
@@ -110,24 +195,8 @@ export function InboxShell() {
       text,
     });
 
-    const [refreshedMessages,refreshedConversations] = await Promise.all([
-        fetchConversationMessages(selectedConversation.conversationId),
-        fetchConversations(),
-
-    ]);
-
-    setMessages(refreshedMessages);
-    setConversations(refreshedConversations);
-
-    const updatedSelectedConversation = 
-    refreshedConversations.find(
-        (item) => item.conversationId === selectedConversation.conversationId) ?? selectedConversation;
-
-    setSelectedConversation(updatedSelectedConversation);
-
-    if (refreshedMessages.length > 0) {
-      setSelectedMessage(refreshedMessages[refreshedMessages.length - 1]);
-    }
+    await loadConversations({ silent: true });
+    await loadMessages(selectedConversation.conversationId, { silent: true });
   }
 
   const threadTitle = useMemo(() => {
@@ -144,8 +213,10 @@ export function InboxShell() {
 
   return (
     <div className="grid h-[calc(100vh-2rem)] grid-cols-1 overflow-hidden rounded-2xl border bg-white shadow-sm lg:grid-cols-12">
-      <div className="lg:col-span-3 min-w-0">
-        <ConversationList
+      <div className="flex h-full min-w-0 flex-col border-r lg:col-span-3 overflow-hidden">
+        <ConversationSidebar
+          search={search}
+          onSearchChange={setSearch}
           conversations={conversations}
           selectedConversationId={selectedConversation?.conversationId ?? null}
           onSelectConversation={setSelectedConversation}
@@ -153,8 +224,8 @@ export function InboxShell() {
         />
       </div>
 
-      <div className="lg:col-span-6 min-w-0">
-        <ChatThread
+      <div className="flex h-full min-w-0 flex-col lg:col-span-6 overflow-hidden">
+        <ChatPanel
           title={threadTitle}
           subtitle={threadSubtitle}
           messages={messages}
@@ -166,7 +237,7 @@ export function InboxShell() {
         />
       </div>
 
-      <div className="lg:col-span-3 min-w-0">
+      <div className="hidden h-full min-w-0 flex-col border-l lg:col-span-3 lg:flex overflow-hidden">
         <InspectorPanel
           selectedMessage={selectedMessage}
           rawPayload={selectedRawPayload}

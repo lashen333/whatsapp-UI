@@ -1,10 +1,22 @@
-// src\app\api\whatsapp\conversations\route.ts
-import { NextResponse } from "next/server";
-import { getConversations } from "@/lib/inbox/get-conversations";
+import { NextRequest, NextResponse } from "next/server";
+import { desc, ilike, or } from "drizzle-orm";
+import { db } from "@/db";
+import { waConversations } from "@/db/schema/wa-conversations";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const conversations = await getConversations();
+    const search = request.nextUrl.searchParams.get("search")?.trim() || "";
+
+    const conversations = await db.query.waConversations.findMany({
+      where: search
+        ? or(
+            ilike(waConversations.customerName, `%${search}%`),
+            ilike(waConversations.customerPhone, `%${search}%`),
+            ilike(waConversations.latestMessagePreview, `%${search}%`)
+          )
+        : undefined,
+      orderBy: [desc(waConversations.lastMessageAt)],
+    });
 
     return NextResponse.json({
       success: true,

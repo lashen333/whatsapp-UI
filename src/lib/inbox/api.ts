@@ -1,8 +1,11 @@
-// src\lib\inbox\api.ts
 import { ConversationItem, MessageItem, MessageRawPayload } from "@/types/inbox";
 
-export async function fetchConversations(): Promise<ConversationItem[]> {
-  const response = await fetch("/api/whatsapp/conversations", {
+export async function fetchConversations(search = ""): Promise<ConversationItem[]> {
+  const url = search
+    ? `/api/whatsapp/conversations?search=${encodeURIComponent(search)}`
+    : "/api/whatsapp/conversations";
+
+  const response = await fetch(url, {
     method: "GET",
     cache: "no-store",
   });
@@ -27,10 +30,13 @@ export async function fetchConversations(): Promise<ConversationItem[]> {
 export async function fetchConversationMessages(
   conversationId: string
 ): Promise<MessageItem[]> {
-  const response = await fetch(`/api/whatsapp/conversations/${encodeURIComponent(conversationId)}`, {
-    method: "GET",
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `/api/whatsapp/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
 
   const data = await response.json();
 
@@ -53,14 +59,20 @@ export async function fetchConversationMessages(
     status: item.status ?? null,
     contextMessageId: item.contextMessageId ?? null,
     eventTimestamp: item.eventTimestamp ?? null,
+    mediaUrl: item.mediaUrl ?? null,
+    mimeType: item.mimeType ?? null,
+    fileName: item.fileName ?? null,
   }));
 }
 
 export async function fetchMessageRaw(wamid: string): Promise<MessageRawPayload> {
-  const response = await fetch(`/api/whatsapp/messages/${encodeURIComponent(wamid)}/raw`, {
-    method: "GET",
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `/api/whatsapp/messages/${encodeURIComponent(wamid)}/raw`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
 
   const data = await response.json();
 
@@ -89,6 +101,24 @@ export async function sendConversationMessage(input: {
 
   if (!response.ok || !data.success) {
     throw new Error(data.error || "Failed to send message");
+  }
+
+  return data;
+}
+
+export async function markConversationRead(conversationId: string) {
+  const response = await fetch("/api/whatsapp/conversations/read", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ conversationId }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Failed to mark conversation as read");
   }
 
   return data;
