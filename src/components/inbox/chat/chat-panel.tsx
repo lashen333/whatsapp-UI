@@ -1,7 +1,7 @@
 import { MessageItem } from "@/types/inbox";
 import { ChatHeader } from "@/components/inbox/chat/chat-header";
 import { MessageList } from "@/components/inbox/chat/message-list";
-import { SendBox } from "@/components/inbox/chat/send-box";
+import { ComposerBar} from "@/components/inbox/composer/composer-bar";
 
 type ChatPanelProps = {
   title: string;
@@ -10,6 +10,7 @@ type ChatPanelProps = {
   selectedMessageWamid: string | null;
   onSelectMessage: (message: MessageItem) => void;
   onSendMessage: (text: string) => Promise<void>;
+  onSendMedia:(file:File,caption?:string)=>Promise<void>;
   isLoading?: boolean;
   isDisabled?: boolean;
 };
@@ -21,6 +22,7 @@ export function ChatPanel({
   selectedMessageWamid,
   onSelectMessage,
   onSendMessage,
+  onSendMedia,
   isLoading = false,
   isDisabled = false,
 }: ChatPanelProps) {
@@ -42,7 +44,11 @@ export function ChatPanel({
         )}
       </div>
 
-      <SendBox disabled={isDisabled} onSend={onSendMessage} />
+      <ComposerBar
+      disabled={isDisabled}
+      onSendText={onSendMessage}
+      onSendMedia={onSendMedia}
+      />
     </section>
   );
 }

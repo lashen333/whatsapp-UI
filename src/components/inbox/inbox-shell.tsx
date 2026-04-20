@@ -10,6 +10,7 @@ import {
   fetchMessageRaw,
   markConversationRead,
   sendConversationMessage,
+  sendConversationMedia,
 } from "@/lib/inbox/api";
 import { useInboxPolling } from "@/hooks/use-inbox-polling";
 import { ConversationItem, MessageItem, MessageRawPayload } from "@/types/inbox";
@@ -199,6 +200,22 @@ export function InboxShell() {
     await loadMessages(selectedConversation.conversationId, { silent: true });
   }
 
+  async function handleSendMedia(file:File,caption?:string){
+    if(!selectedConversation?.customerPhone){
+      throw new Error("Selected conversation has no customer phone number");
+    }
+    await sendConversationMedia({
+      conversationId: selectedConversation.conversationId,
+      to: selectedConversation.customerPhone,
+      file,
+      caption,
+    });
+
+    await loadConversations({ silent: true });
+    await loadMessages(selectedConversation.conversationId, { silent: true });
+  
+  }
+
   const threadTitle = useMemo(() => {
     return (
       selectedConversation?.customerName ||
@@ -232,6 +249,7 @@ export function InboxShell() {
           selectedMessageWamid={selectedMessage?.wamid ?? null}
           onSelectMessage={setSelectedMessage}
           onSendMessage={handleSendMessage}
+          onSendMedia={handleSendMedia}
           isLoading={isLoadingMessages}
           isDisabled={!selectedConversation}
         />

@@ -1,4 +1,4 @@
-"use client";
+/*"use client";
 
 import { useState } from "react";
 
@@ -53,3 +53,4 @@ export function SendBox({ disabled = false, onSend }: SendBoxProps) {
     </div>
   );
 }
+*/
