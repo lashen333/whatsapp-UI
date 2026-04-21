@@ -1,15 +1,20 @@
-// src\app\api\whatsapp\webhook\route.ts
+// src/app/api/whatsapp/webhook/route.ts
 /*
 saves raw event in DB
 ignores duplicates
-appends to Google Sheets only for new event
-returns success 
+appends raw webhook rows to RAW_WEBHOOK_EVENTS
+appends parsed event rows to RAW_WHATSAPP_EVENTS
+processes webhook event for app DB logic
+returns success
 */
 
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { appendRawWebhookRow } from "@/lib/sheets/append-raw-webhook-row";
+import { appendParsedWhatsAppRows } from "@/lib/sheets/append-parsed-whatsapp-rows";
+import { processWebhookEvent } from "@/lib/whatsapp/process-webhook-event";
 import { storeRawWebhookEvent } from "@/lib/whatsapp/store-raw-event";
+import { mapWhatsAppPayloadToSheetRows } from "@/lib/whatsapp/sheets/map-payload-to-sheet-rows";
 import {
   getWebhookObject,
   guessConversationId,
@@ -19,7 +24,6 @@ import {
   guessMessageId,
   guessToNumber,
 } from "@/lib/whatsapp/webhook-helpers";
-import { processWebhookEvent } from "@/lib/whatsapp/process-webhook-event";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -59,6 +63,7 @@ export async function POST(request: NextRequest) {
     const fromNumberGuess = guessFromNumber(payload);
     const toNumberGuess = guessToNumber(payload);
 
+    // 1. Append the simple/raw webhook log row
     await appendRawWebhookRow({
       webhookObject,
       eventKind,
@@ -70,6 +75,13 @@ export async function POST(request: NextRequest) {
       payload,
     });
 
+    // 2. Map this webhook payload into parsed sheet rows
+    const parsedRows = mapWhatsAppPayloadToSheetRows(payload);
+
+    // 3. Append parsed rows to the new RAW_WHATSAPP_EVENTS tab
+    await appendParsedWhatsAppRows(parsedRows);
+
+    // 4. Process webhook for application DB logic
     await processWebhookEvent({
       rawEventId: rawEvent.id,
       payload,
@@ -79,6 +91,7 @@ export async function POST(request: NextRequest) {
       success: true,
       stored: true,
       rawEventId: rawEvent.id,
+      parsedRowCount: parsedRows.length,
     });
   } catch (error) {
     console.error("Webhook processing failed:", error);

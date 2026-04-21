@@ -1,3 +1,4 @@
+// src\types\inbox.ts
 export type ConversationItem = {
   id: string;
   conversationId: string;
