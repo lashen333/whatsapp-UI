@@ -1,3 +1,4 @@
+// src\components\inbox\chat\message-media.tsx
 type MessageMediaProps = {
   messageType: string | null;
   mediaUrl?: string | null;

@@ -1,3 +1,4 @@
+// src\components\inbox\composer\attachment-preview.tsx
 type AttachmentPreviewProps = {
   file: File | null;
   previewUrl: string | null;

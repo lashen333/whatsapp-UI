@@ -1,3 +1,4 @@
+// src\components\inbox\raw-json-viewer.tsx
 "use client";
 import { useState } from "react";
 

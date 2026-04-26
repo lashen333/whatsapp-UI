@@ -1,3 +1,4 @@
+// src\components\inbox\composer\composer-bar.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -78,7 +79,7 @@ export function ComposerBar({
             rows={1}
             placeholder="Type a message"
             disabled={disabled || isSending}
-            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none"
+            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl px-3 py-2 text-sm text-black outline-none"
             onKeyDown={async (e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

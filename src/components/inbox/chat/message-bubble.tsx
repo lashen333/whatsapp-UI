@@ -1,3 +1,4 @@
+// src\components\inbox\chat\message-bubble.tsx
 import { MessageItem } from "@/types/inbox";
 import { MessageMedia } from "@/components/inbox/chat/message-media";
 import { ReplyContextPreview } from "@/components/inbox/chat/reply-context-preview";

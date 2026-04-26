@@ -1,3 +1,4 @@
+// src\components\inbox\chat\message-list.tsx
 import { MessageItem } from "@/types/inbox";
 import { MessageBubble } from "@/components/inbox/chat/message-bubble";
 

@@ -1,3 +1,4 @@
+// src\components\inbox\chat\chat-panel.tsx
 import { MessageItem } from "@/types/inbox";
 import { ChatHeader } from "@/components/inbox/chat/chat-header";
 import { MessageList } from "@/components/inbox/chat/message-list";

@@ -1,4 +1,3 @@
-// src\components\inbox\inbox-shell.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,8 +9,8 @@ import {
   fetchConversations,
   fetchMessageRaw,
   markConversationRead,
-  sendConversationMessage,
   sendConversationMedia,
+  sendConversationMessage,
 } from "@/lib/inbox/api";
 import { useInboxPolling } from "@/hooks/use-inbox-polling";
 import { ConversationItem, MessageItem, MessageRawPayload } from "@/types/inbox";
@@ -35,6 +34,8 @@ export function InboxShell() {
   const lastMarkedReadConversationRef = useRef<string | null>(null);
   const lastLoadedRawMessageRef = useRef<string | null>(null);
 
+  const selectedConversationId = selectedConversation?.conversationId ?? null;
+
   const loadConversations = useCallback(
     async (options?: { silent?: boolean }) => {
       const silent = options?.silent ?? false;
@@ -47,30 +48,17 @@ export function InboxShell() {
         const data = await fetchConversations(search);
         setConversations(data);
 
-        if (!selectedConversation && data.length > 0) {
-          setSelectedConversation(data[0]);
-          return;
-        }
-
-        if (selectedConversation) {
-          const stillExists = data.find(
-            (item) => item.conversationId === selectedConversation.conversationId
-          );
-
-          if (stillExists) {
-            setSelectedConversation((prev) => {
-              if (!prev) return stillExists;
-              if (prev.conversationId !== stillExists.conversationId) {
-                return stillExists;
-              }
-
-              return {
-                ...prev,
-                ...stillExists,
-              };
-            });
+        setSelectedConversation((current) => {
+          if (current) {
+            return (
+              data.find(
+                (item) => item.conversationId === current.conversationId
+              ) ?? current
+            );
           }
-        }
+
+          return data[0] ?? null;
+        });
       } catch (error) {
         console.error(error);
       } finally {
@@ -79,7 +67,7 @@ export function InboxShell() {
         }
       }
     },
-    [search, selectedConversation]
+    [search]
   );
 
   const loadMessages = useCallback(
@@ -121,35 +109,38 @@ export function InboxShell() {
 
   useEffect(() => {
     async function handleConversationChange() {
-      if (!selectedConversation) {
+      if (!selectedConversationId) {
         setMessages([]);
         setSelectedMessage(null);
         setSelectedRawPayload(null);
         return;
       }
 
-      await loadMessages(selectedConversation.conversationId, { silent: false });
-
-      if (
-        lastMarkedReadConversationRef.current !== selectedConversation.conversationId
-      ) {
-        try {
-          await markConversationRead(selectedConversation.conversationId);
-          lastMarkedReadConversationRef.current =
-            selectedConversation.conversationId;
-        } catch (error) {
-          console.error(error);
-        }
-      }
+      await loadMessages(selectedConversationId, { silent: false });
     }
 
     void handleConversationChange();
-  }, [selectedConversation, loadMessages]);
+  }, [selectedConversationId, loadMessages]);
+
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    if (lastMarkedReadConversationRef.current === selectedConversationId) {
+      return;
+    }
+
+    lastMarkedReadConversationRef.current = selectedConversationId;
+
+    void markConversationRead(selectedConversationId).catch((error) => {
+      console.error("Mark conversation read failed:", error);
+    });
+  }, [selectedConversationId]);
 
   useEffect(() => {
     async function loadRawPayload() {
       if (!selectedMessage) {
         setSelectedRawPayload(null);
+        lastLoadedRawMessageRef.current = null;
         return;
       }
 
@@ -164,13 +155,14 @@ export function InboxShell() {
         lastLoadedRawMessageRef.current = selectedMessage.wamid;
       } catch (error) {
         console.error(error);
+        setSelectedRawPayload(null);
       } finally {
         setIsLoadingRaw(false);
       }
     }
 
     void loadRawPayload();
-  }, [selectedMessage]);
+  }, [selectedMessage?.wamid]);
 
   useInboxPolling({
     enabled: hasInitializedRef.current,
@@ -178,43 +170,41 @@ export function InboxShell() {
     onPoll: async () => {
       await loadConversations({ silent: true });
 
-      if (selectedConversation?.conversationId) {
-        await loadMessages(selectedConversation.conversationId, {
-          silent: true,
-        });
+      if (selectedConversationId) {
+        await loadMessages(selectedConversationId, { silent: true });
       }
     },
   });
 
   async function handleSendMessage(text: string) {
-    if (!selectedConversation?.customerPhone) {
+    if (!selectedConversation?.customerPhone || !selectedConversationId) {
       throw new Error("Selected conversation has no customer phone number");
     }
 
     await sendConversationMessage({
-      conversationId: selectedConversation.conversationId,
+      conversationId: selectedConversationId,
       to: selectedConversation.customerPhone,
       text,
     });
 
     await loadConversations({ silent: true });
-    await loadMessages(selectedConversation.conversationId, { silent: true });
+    await loadMessages(selectedConversationId, { silent: true });
   }
 
-  async function handleSendMedia(file:File,caption?:string){
-    if(!selectedConversation?.customerPhone){
+  async function handleSendMedia(file: File, caption?: string) {
+    if (!selectedConversation?.customerPhone || !selectedConversationId) {
       throw new Error("Selected conversation has no customer phone number");
     }
+
     await sendConversationMedia({
-      conversationId: selectedConversation.conversationId,
+      conversationId: selectedConversationId,
       to: selectedConversation.customerPhone,
       file,
       caption,
     });
 
     await loadConversations({ silent: true });
-    await loadMessages(selectedConversation.conversationId, { silent: true });
-  
+    await loadMessages(selectedConversationId, { silent: true });
   }
 
   const threadTitle = useMemo(() => {
@@ -231,18 +221,18 @@ export function InboxShell() {
 
   return (
     <div className="grid h-[calc(100vh-2rem)] grid-cols-1 overflow-hidden rounded-2xl border bg-white shadow-sm lg:grid-cols-12">
-      <div className="flex h-full min-w-0 flex-col border-r lg:col-span-3 overflow-hidden">
+      <div className="min-w-0 border-r lg:col-span-3">
         <ConversationSidebar
           search={search}
           onSearchChange={setSearch}
           conversations={conversations}
-          selectedConversationId={selectedConversation?.conversationId ?? null}
+          selectedConversationId={selectedConversationId}
           onSelectConversation={setSelectedConversation}
           isLoading={isLoadingConversations}
         />
       </div>
 
-      <div className="flex h-full min-w-0 flex-col lg:col-span-6 overflow-hidden">
+      <div className="min-w-0 lg:col-span-6">
         <ChatPanel
           title={threadTitle}
           subtitle={threadSubtitle}
@@ -256,7 +246,7 @@ export function InboxShell() {
         />
       </div>
 
-      <div className="hidden h-full min-w-0 flex-col border-l lg:col-span-3 lg:flex overflow-hidden">
+      <div className="hidden min-w-0 border-l lg:col-span-3 lg:block">
         <InspectorPanel
           selectedMessage={selectedMessage}
           rawPayload={selectedRawPayload}

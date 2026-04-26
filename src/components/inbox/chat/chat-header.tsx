@@ -1,3 +1,4 @@
+// src\components\inbox\chat\chat-header.tsx
 type ChatHeaderProps = {
   title: string;
   subtitle: string;
