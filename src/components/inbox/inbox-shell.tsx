@@ -221,7 +221,7 @@ export function InboxShell() {
 
   return (
     <div className="grid h-[calc(100vh-2rem)] grid-cols-1 overflow-hidden rounded-2xl border bg-white shadow-sm lg:grid-cols-12">
-      <div className="min-w-0 border-r lg:col-span-3">
+      <div className="flex h-full min-w-0 flex-col border-r lg:col-span-3 overflow-hidden">
         <ConversationSidebar
           search={search}
           onSearchChange={setSearch}
@@ -232,7 +232,7 @@ export function InboxShell() {
         />
       </div>
 
-      <div className="min-w-0 lg:col-span-6">
+      <div className="flex h-full min-w-0 flex-col lg:col-span-6 overflow-hidden">
         <ChatPanel
           title={threadTitle}
           subtitle={threadSubtitle}
@@ -246,7 +246,7 @@ export function InboxShell() {
         />
       </div>
 
-      <div className="hidden min-w-0 border-l lg:col-span-3 lg:block">
+      <div className="hidden h-full min-w-0 flex-col border-l lg:col-span-3 lg:flex overflow-hidden">
         <InspectorPanel
           selectedMessage={selectedMessage}
           rawPayload={selectedRawPayload}
