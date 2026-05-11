@@ -24,6 +24,7 @@ export function parseMessageColumns({
     const listReply = asRecord(interactive?.list_reply);
     const location = asRecord(message.location);
     const context = asRecord(message.context);
+    const referral = asRecord(message.referral);
     const profile = asRecord(contact?.profile);
 
     row.event_type = "message";
@@ -77,5 +78,13 @@ export function parseMessageColumns({
     row.location_name = getString(location?.name);
     row.location_address = getString(location?.address);
 
-    return row;
+    row.referral_source_type = getString(referral?.source_type);
+    row.referral_source_url = getString(referral?.source_url);
+    row.referral_source_id = getString(referral?.source_id);
+    row.referral_headline = getString(referral?.headline);
+    row.referral_body = getString(referral?.body);
+    row.referral_media_type = getString(referral?.media_type);
+    row.ctwa_clid = getString(referral?.ctwa_clid);
+
+return row;
 }
