@@ -64,6 +64,14 @@ export type WhatsAppParsedSheetRow = {
     location_name: string;
     location_address: string;
 
+    referral_source_type: string;
+    referral_source_url: string;
+    referral_source_id: string;
+    referral_headline: string;
+    referral_body: string;
+    referral_media_type: string;
+    ctwa_clid: string;
+
     conversation_id: string;
     conversation_origin_type: string;
     conversation_expiration_timestamp: string;
@@ -135,6 +143,13 @@ export const WHATSAPP_PARSED_SHEET_HEADERS: (keyof WhatsAppParsedSheetRow)[] = [
     "location_longitude",
     "location_name",
     "location_address",
+    "referral_source_type",
+    "referral_source_url",
+    "referral_source_id",
+    "referral_headline",
+    "referral_body",
+    "referral_media_type",
+    "ctwa_clid",
     "conversation_id",
     "conversation_origin_type",
     "conversation_expiration_timestamp",
